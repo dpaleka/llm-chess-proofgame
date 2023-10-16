@@ -1,4 +1,5 @@
 ## Copyright (C) 2023, Nicholas Carlini <nicholas@carlini.com>.
+## Copyright (C) 2023, Daniel Paleka <daniel.paleka@inf.ethz.ch>.
 ##
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -22,14 +23,35 @@ import csv
 import os
 import re
 import pickle
+from pathlib import Path
 
 
-def download_and_decompress(url):
-    os.popen("wget " + url).read()
-    compressed_filename = os.path.basename(url)
+import requests
+import time
+import os
+
+DATA_DIR = Path("/data/chess-data/lichess_puzzles")  # Set the desired path to the data folder
+
+def download_and_decompress(url, path=DATA_DIR):
+    # Download to DATA_DIR, not here
+    if not DATA_DIR.exists():
+        DATA_DIR.mkdir(parents=True)
+
+    filename = os.path.join(path, os.path.basename(url))
+    if os.path.exists(filename):
+        print("Already downloaded", url)
+        return
+
+    print("Downloading", url)
+    os.popen("wget -O " + filename + " " + url).read()
+
     time.sleep(1)
-    os.popen("zstd -d " + compressed_filename).read()
-    os.remove(compressed_filename)
+    # Decompress to that folder too
+    os.popen("zstd -d " + filename).read()
+    os.remove(filename)
+
+
+
 
     
 def get_data():
@@ -116,7 +138,7 @@ def process_puzzles(csv_filename, games_filename, mapping):
                 ))
                 print(len(extracted_puzzles))
 
-    with open("pgn_puzzles.csv", "w") as f:
+    with open(os.path.join(DATA_DIR, "pgn_puzzles.csv"), "w") as f:
         writer = csv.writer(f)
         for uid, rating, board, solution in extracted_puzzles:
             writer.writerow((uid, rating,
@@ -128,10 +150,10 @@ def process_puzzles(csv_filename, games_filename, mapping):
 if __name__ == "__main__":
     get_data()
 
-    filename = "lichess_db_standard_rated_2016-02.pgn"
+    filename = os.path.join(DATA_DIR, "lichess_db_standard_rated_2016-02.pgn")
     mapping = generate_mapping(filename)
 
-    with open('mapping.pickle', 'wb') as f:
+    with open(os.path.join(DATA_DIR, 'mapping.pickle'), 'wb') as f:
         pickle.dump(mapping, f)
 
-    process_puzzles("lichess_db_puzzle.csv", filename, pickle.load(open("mapping.pickle","rb")))
+    process_puzzles(os.path.join(DATA_DIR, "lichess_db_puzzle.csv"), filename, pickle.load(open(os.path.join(DATA_DIR, "mapping.pickle"),"rb")))
