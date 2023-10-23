@@ -22,29 +22,37 @@
  We also need to make sure that the PGN is valid.  We can do this by playing the game out on a chessboard, using python-chess,
  and then checking that the final position is the same as the one we started with.
 """
-#%%
+
 import os
 import io
+import argparse
 import subprocess
 from multiprocessing import Pool
 import re
 import chess
 import chess.pgn
 from pathlib import Path
+import pandas as pd
+import pebble
+from tqdm import tqdm
+from concurrent.futures import TimeoutError
 
 # Add texelutil to the PATH
 TEXELUTIL_PATH = Path(".").resolve()
-print(TEXELUTIL_PATH)
 os.environ["PATH"] += os.pathsep + str(TEXELUTIL_PATH)
 
+
+DATA_DIR = "/data/chess-data/lichess_puzzles"
 SEED = 42
+TEXELUTIL_RES_DIR = "./texel_temp_results"
+os.makedirs(TEXELUTIL_RES_DIR, exist_ok=True)
+MAX_THREADS = 64
+TIMEOUT = 180  # Timeout in seconds
 
-# List of FENs
-fens = ["r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1", 
-        "r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1",
-        "r1b3k1/pp3Rpp/3p1b2/2pN4/2P5/5Q1P/PPP3P1/4qNK1 w - - 0 1"] # TODO get this from a FENS_FILE csv file instead. it will be a csv with a 'FEN' column
-
-TEXELUTIL_RES_DIR = "" # TODO add this to the code below, where needed
+# List of FENs for testing
+fens_test = ["r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1", 
+             "r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1",
+             "r1b3k1/pp3Rpp/3p1b2/2pN4/2P5/5Q1P/PPP3P1/4qNK1 w - - 0 1"]
 
 def check_contains_fen(fen, file):
     if not os.path.exists(file):
@@ -52,24 +60,28 @@ def check_contains_fen(fen, file):
     with open(file, "r") as f:
         content = f.read()
         return content.startswith(fen)
-        
 
+def move_01(fen : str):
+    """
+    Replace the last two numbers with 0 and 1.
+    """
+    fen = fen.split()
+    assert(len(fen) == 6 and fen[4].isdigit() and fen[5].isdigit())
+    fen[4] = "0"
+    fen[5] = "1"
+    return " ".join(fen)
 
-def run_command(fen, thread_id, TIMEOUT=0.5*60, force=False):
-    FIRST_FILE = f"result_t_{thread_id}_00"
+def run_command(fen, thread_id, force=False):
+    FIRST_FILE = f"{TEXELUTIL_RES_DIR}/result_t_{thread_id}_00"
     if not force and os.path.exists(FIRST_FILE):
         if check_contains_fen(fen, FIRST_FILE):
             print(f"Thread {thread_id}: Already solved")
             return
-        
-    command = f'echo "{fen}" | texelutil proofgame -f -o result_t_{thread_id}_ -rnd {SEED} 2>debug_t_{thread_id}_'
-    # time it to TIMEOUT
-    #subprocess.run(command, shell=True)
+    command = f'echo "{fen}" | texelutil proofgame -f -o {TEXELUTIL_RES_DIR}/result_t_{thread_id}_ -rnd {SEED} 2>{DATA_DIR}/logs/debug_t_{thread_id}_.log'
     try:
         subprocess.run(command, shell=True, timeout=TIMEOUT)
     except subprocess.TimeoutExpired:
         print(f"Thread {thread_id}: Timeout expired")
-
 
 def convert_to_pgn(moves):
     moves = moves.split()
@@ -81,69 +93,79 @@ def convert_to_pgn(moves):
             pgn += f"{moves[i + 1]} "
     return pgn.strip()
 
-
 def validate_pgn(pgn : str, fen : str, ignore_move_number=True):
-    """ 
-        pgn: string of the form "1. g4 d5 2. f4 h5 3. gxh5 e5 4. Nh3 Bxh3 5. Bxh3 e4 6. Bd7+
-        fen: string of the form "r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1"
-    """
-    print(f"pgn: {pgn}")
-    print(f"fen:       {fen}")
-    # Initialize an empty chess board
     board = chess.Board()
-
-    # Parse the PGN game
     game = chess.pgn.read_game(io.StringIO(pgn))
-
-    # Play out the game on the board
     for move in game.mainline_moves():
         board.push(move)
-
-    # Compare the final position with the provided FEN
-    print(f"board fen: {board.fen()}")
     if ignore_move_number:
-        # Ditch the last two fields of the FEN
         fen = " ".join(fen.split()[:-2])
         return board.fen().startswith(fen)
     else:
         return board.fen() == fen
 
-
-MAX_THREADS = 32
-with Pool(MAX_THREADS) as p:
-    p.starmap(run_command, [(fen, i) for i, fen in enumerate(fens)])
-
-
-#%%
-SAVE_FILENAME = "proofgame_pgns.csv" # TODO incorporate this
-
-def process_output(thread_id):
-    # Find the last output file
+def process_output(thread_id) -> str:
     i = 0
-    while os.path.exists(f"result_t_{thread_id}_{i:02d}"):
+    while os.path.exists(f"{TEXELUTIL_RES_DIR}/result_t_{thread_id}_{i:02d}"):
         i += 1
-    last_file = f"result_t_{thread_id}_{i - 1:02d}"
-
+    last_file = f"{TEXELUTIL_RES_DIR}/result_t_{thread_id}_{i - 1:02d}"
     with open(last_file, "r") as f:
         content = f.read()
-
-    # Check if the proof game was found
     match = re.search(r"legal: proof: (.*)", content)
     if match:
         moves = match.group(1)
         pgn = convert_to_pgn(moves)
         if validate_pgn(pgn, fens[thread_id]):
             print(f"Thread {thread_id}: Proof game is valid")
-            
+            return pgn
         else:
             print(f"Thread {thread_id}: Proof game is invalid")
+            return None
     else:
         print(f"Thread {thread_id}: No proof game found")
+        return None
 
-# Process the output files
-for i in range(len(fens)):
-    process_output(i)
+def main(args):
+    global fens
+    if args.fens_file:
+        df = pd.read_csv(args.fens_file)
+        fens = df['FEN'].tolist()
+    else:
+        fens = fens_test
 
-#%%
+    print(f"Computing {len(fens)} proof games")
+    for i in range(0, len(fens), MAX_THREADS):
+        print(f"Processing {i} to {i + MAX_THREADS}")
+        import multiprocessing
+        pool = multiprocessing.Pool(MAX_THREADS)
+        with pool:
+            pool.starmap(run_command, [(fen, i + thread_id) for thread_id, fen in enumerate(fens[i:i + MAX_THREADS])])
+        pool.close()
+        pool.join()
+        # kill texelutil bc it's not closing properly
+        subprocess.run("killall texelutil", shell=True)
+        import time
+        time.sleep(max(5, TIMEOUT/10))
 
-# TODO make a function that calls all of the below
+    print("Processing output")
+    if args.fens_file:
+        for thread_id in tqdm(range(len(fens))):
+            pgn = process_output(thread_id)
+            if pgn:
+                df.loc[thread_id, 'proofgame'] = pgn
+            else:
+                df.loc[thread_id, 'proofgame'] = None
+        df.to_csv(args.save_filename, index=False)
+    else:
+        for thread_id in tqdm(range(len(fens))):
+            process_output(thread_id)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fens_file", help="CSV file with a 'FEN' column", default=None)
+    parser.add_argument("--save_filename", help="File to save the results", default="/data/chess-data/lichess_puzzles/proofgame_pgns.csv")
+    args = parser.parse_args()
+    main(args)
+
+

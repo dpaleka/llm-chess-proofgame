@@ -1,3 +1,4 @@
 python-chess
 requests
 zstandard
+pebble
