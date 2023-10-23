@@ -22,28 +22,53 @@
  We also need to make sure that the PGN is valid.  We can do this by playing the game out on a chessboard, using python-chess,
  and then checking that the final position is the same as the one we started with.
 """
-
+#%%
 import os
+import io
 import subprocess
 from multiprocessing import Pool
 import re
 import chess
+import chess.pgn
 from pathlib import Path
 
 # Add texelutil to the PATH
-TEXELUTIL_PATH = Path("../texelutil").resolve()
-os.environ["PATH"] += os.pathsep + TEXELUTIL_PATH
+TEXELUTIL_PATH = Path(".").resolve()
+print(TEXELUTIL_PATH)
+os.environ["PATH"] += os.pathsep + str(TEXELUTIL_PATH)
+
+SEED = 42
 
 # List of FENs
-fens = ["r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1", ...]
+fens = ["r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1", 
+        "r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1",
+        "r1b3k1/pp3Rpp/3p1b2/2pN4/2P5/5Q1P/PPP3P1/4qNK1 w - - 0 1"] # TODO get this from a FENS_FILE csv file instead. it will be a csv with a 'FEN' column
 
-def run_command(fen, thread_id):
-    command = f'echo "{fen}" | texelutil proofgame -f -o result_t_{thread_id}_ -rnd seed 2>debug_t_{thread_id}_'
-    subprocess.run(command, shell=True)
+TEXELUTIL_RES_DIR = "" # TODO add this to the code below, where needed
 
-# Using multiprocessing to run the commands in parallel
-with Pool() as p:
-    p.starmap(run_command, [(fen, i) for i, fen in enumerate(fens)])
+def check_contains_fen(fen, file):
+    if not os.path.exists(file):
+        return False
+    with open(file, "r") as f:
+        content = f.read()
+        return content.startswith(fen)
+        
+
+
+def run_command(fen, thread_id, TIMEOUT=0.5*60, force=False):
+    FIRST_FILE = f"result_t_{thread_id}_00"
+    if not force and os.path.exists(FIRST_FILE):
+        if check_contains_fen(fen, FIRST_FILE):
+            print(f"Thread {thread_id}: Already solved")
+            return
+        
+    command = f'echo "{fen}" | texelutil proofgame -f -o result_t_{thread_id}_ -rnd {SEED} 2>debug_t_{thread_id}_'
+    # time it to TIMEOUT
+    #subprocess.run(command, shell=True)
+    try:
+        subprocess.run(command, shell=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print(f"Thread {thread_id}: Timeout expired")
 
 
 def convert_to_pgn(moves):
@@ -57,14 +82,40 @@ def convert_to_pgn(moves):
     return pgn.strip()
 
 
-def validate_pgn(pgn, fen):
+def validate_pgn(pgn : str, fen : str, ignore_move_number=True):
+    """ 
+        pgn: string of the form "1. g4 d5 2. f4 h5 3. gxh5 e5 4. Nh3 Bxh3 5. Bxh3 e4 6. Bd7+
+        fen: string of the form "r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1"
+    """
+    print(f"pgn: {pgn}")
+    print(f"fen:       {fen}")
+    # Initialize an empty chess board
     board = chess.Board()
-    game = chess.pgn.read_game(pgn)
+
+    # Parse the PGN game
+    game = chess.pgn.read_game(io.StringIO(pgn))
+
+    # Play out the game on the board
     for move in game.mainline_moves():
         board.push(move)
 
-    return board.fen() == fen
+    # Compare the final position with the provided FEN
+    print(f"board fen: {board.fen()}")
+    if ignore_move_number:
+        # Ditch the last two fields of the FEN
+        fen = " ".join(fen.split()[:-2])
+        return board.fen().startswith(fen)
+    else:
+        return board.fen() == fen
 
+
+MAX_THREADS = 32
+with Pool(MAX_THREADS) as p:
+    p.starmap(run_command, [(fen, i) for i, fen in enumerate(fens)])
+
+
+#%%
+SAVE_FILENAME = "proofgame_pgns.csv" # TODO incorporate this
 
 def process_output(thread_id):
     # Find the last output file
@@ -83,6 +134,7 @@ def process_output(thread_id):
         pgn = convert_to_pgn(moves)
         if validate_pgn(pgn, fens[thread_id]):
             print(f"Thread {thread_id}: Proof game is valid")
+            
         else:
             print(f"Thread {thread_id}: Proof game is invalid")
     else:
@@ -92,6 +144,6 @@ def process_output(thread_id):
 for i in range(len(fens)):
     process_output(i)
 
+#%%
 
-# TODO have a folder to save the output files in
 # TODO make a function that calls all of the below
