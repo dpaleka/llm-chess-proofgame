@@ -56,6 +56,7 @@ def solve_puzzle(board, solution):
 
 
 DATA_DIR = Path("/data/chess-data/lichess_puzzles")  
+FILE_NAME = DATA_DIR / "pgn_puzzles.csv"
 
 def main():
 
@@ -65,7 +66,7 @@ def main():
     enough_samples = 40
 
     # Read the data and sort into buckets
-    with open(DATA_DIR / "pgn_puzzles.csv") as f:
+    with open(FILE_NAME) as f:
         reader = csv.reader(f)
         print(reader.__next__())
         for puzzleid, rating, pgn, solution in tqdm(list(reader)):
