@@ -14,7 +14,6 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import requests
 import time
 import chess
 import chess.pgn
@@ -26,20 +25,25 @@ import pickle
 from pathlib import Path
 
 
-import requests
-import time
-import os
-
 DATA_DIR = Path("/data/chess-data/lichess_puzzles")  # Set the desired path to the data folder
 
-def download_and_decompress(url, path=DATA_DIR):
+def download_and_decompress(url, path):
     # Download to DATA_DIR, not here
-    if not DATA_DIR.exists():
-        DATA_DIR.mkdir(parents=True)
+    if not path.exists():
+        path.mkdir(parents=True)
 
     filename = os.path.join(path, os.path.basename(url))
     if os.path.exists(filename):
         print("Already downloaded", url)
+        if os.path.exists(filename.split(".zst")[0]):
+            print("Already decompressed", url)
+            return
+        # Decompress to that folder too
+        os.popen("zstd -d " + filename).read()
+        return
+    
+    if os.path.exists(filename.split(".zst")[0]):    
+        print("Already decompressed", url)
         return
 
     print("Downloading", url)
@@ -48,18 +52,9 @@ def download_and_decompress(url, path=DATA_DIR):
     time.sleep(1)
     # Decompress to that folder too
     os.popen("zstd -d " + filename).read()
-    os.remove(filename)
 
 
 
-
-    
-def get_data():
-    download_and_decompress("https://database.lichess.org/standard/lichess_db_standard_rated_2016-02.pgn.zst")
-    download_and_decompress("https://database.lichess.org/lichess_db_puzzle.csv.zst")
-
-
-import re
 
 def generate_mapping(filename):
     mapping = {}
@@ -95,11 +90,10 @@ def convert_pgn_to_game(pgn_moves):
         return None
     return game
 
-def process_puzzles(csv_filename, games_filename, mapping):
-
+def process_puzzles(puzzles_filename, games_filename, mapping ):
     extracted_puzzles = []
 
-    with open(csv_filename, 'r') as f:
+    with open(puzzles_filename, 'r') as f:
         reader = csv.reader(f)
         next(reader)
         for row in reader:
@@ -138,7 +132,7 @@ def process_puzzles(csv_filename, games_filename, mapping):
                 ))
                 print(len(extracted_puzzles))
 
-    with open(os.path.join(DATA_DIR, "pgn_puzzles.csv"), "w") as f:
+    with open(os.path.join(games_filename.parent, "pgn_puzzles.csv"), "w") as f:
         writer = csv.writer(f)
         for uid, rating, board, solution in extracted_puzzles:
             writer.writerow((uid, rating,
@@ -147,13 +141,35 @@ def process_puzzles(csv_filename, games_filename, mapping):
 
 
 
+
+
+
 if __name__ == "__main__":
-    get_data()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir", "-d", help="Name of the data directory", default="/data/chess-data/lichess_puzzles")
+    parser.add_argument("--batches", "-b", nargs='+', help="Name of the batch", default=["2014-06"])
+    args = parser.parse_args()
 
-    filename = os.path.join(DATA_DIR, "lichess_db_standard_rated_2016-02.pgn")
-    mapping = generate_mapping(filename)
+    global DATA_DIR
+    DATA_DIR = Path(args.data_dir)
 
-    with open(os.path.join(DATA_DIR, 'mapping.pickle'), 'wb') as f:
-        pickle.dump(mapping, f)
+    #batches = ["2023-05"]
+    batches = args.batches
 
-    process_puzzles(os.path.join(DATA_DIR, "lichess_db_puzzle.csv"), filename, pickle.load(open(os.path.join(DATA_DIR, "mapping.pickle"),"rb")))
+    url_puzzles="https://database.lichess.org/lichess_db_puzzle.csv.zst"
+    download_and_decompress(url_puzzles, DATA_DIR)
+    for batch in batches:
+        archive = f"lichess_db_standard_rated_{batch}.pgn"
+        path = DATA_DIR / batch
+        url_games = f"https://database.lichess.org/standard/{archive}.zst"
+        download_and_decompress(url_games, path)
+
+
+        filename = path / archive
+        mapping = generate_mapping(filename)
+
+        with open(os.path.join(path, 'mapping.pickle'), 'wb') as f:
+            pickle.dump(mapping, f)
+        process_puzzles(puzzles_filename=DATA_DIR / "lichess_db_puzzle.csv", games_filename=filename, mapping=pickle.load(open(path / "mapping.pickle","rb")))
+

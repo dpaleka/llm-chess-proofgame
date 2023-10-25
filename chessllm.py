@@ -100,10 +100,12 @@ class ChessLLM:
 
         return next_moves[0]
 
-#    @cachier(stale_after=datetime.timedelta(days=30), pickle_reload=False, cache_dir="/data/chess/cache")
     @cachier()
     def make_request(self, content, num_tokens, temperature, model="gpt-3.5-turbo-instruct", **kwargs):
         # kwargs are here for compatibility with local model calls through fastapi
         print("Not using cache")
+        if model.startswith("BlueSunflower"):
+            raise NotImplementedError("Pythia chess is not supported yet")
+
         response = completion(model, messages=[{"role": "user", "content": content}], **{"max_tokens": num_tokens, "temperature": temperature})
         return response["choices"][0]["message"]["content"]

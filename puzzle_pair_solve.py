@@ -7,6 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 from puzzle_solver import convert_pgn_to_game, solve_puzzle
 import chessllm
+from matplotlib import pyplot as plt
 
 DATA_DIR = Path("/data/chess-data/lichess_puzzles")  
 FILE_NAME = DATA_DIR / "pairs.csv"
@@ -24,11 +25,9 @@ convert_pgn_to_game(pgn_moves) -> game
 DATA_DIR = Path("/data/chess-data/lichess_puzzles")  
 FILE_NAME = DATA_DIR / "pairs.csv"
 
-def main(engine):
+def plot_acc_pairs(engine, bucket_size=200, enough_samples=10):
     # Create buckets
-    bucket_size = 200
     buckets = {i*bucket_size: [] for i in range(30)}
-    enough_samples = 10
 
     # Read the data and sort into buckets
     with open(FILE_NAME) as f:
@@ -42,6 +41,7 @@ def main(engine):
     # print how many elems in buckets
     for k, v in buckets.items():
         print(f'rating [{k}, {k + bucket_size})', 'n', len(v))
+    nonempty_buckets = [k for k, v in buckets.items() if len(v) > 0]
 
     # Test the puzzles
     ok_pgn = {i*bucket_size: [] for i in range(30)}
@@ -66,15 +66,53 @@ def main(engine):
             ok_proofgame[rating_bucket].append(is_right_proofgame)
 
     # Compare the results
-    for i in range(30):
-        bucket_start = i * bucket_size
+    for bucket_start in nonempty_buckets:
         if len(ok_pgn[bucket_start]) > 0 and len(ok_proofgame[bucket_start]) > 0:
             pgn_acc = np.mean(ok_pgn[bucket_start])
             proofgame_acc = np.mean(ok_proofgame[bucket_start])
             print(f'rating [{bucket_start}, {bucket_start + bucket_size})', f'pgn acc {pgn_acc:.3f}', f'proofgame acc {proofgame_acc:.3f}', 'n', len(ok_pgn[bucket_start]))
+    
+    # Plot both results
+    """
+    Some old code:
+    non_nan_indices = [i for i, val in enumerate(ratings) if not np.isnan(val)]
+    non_nan_values = [ratings[i] for i in non_nan_indices]
+    bucket_ranges = [(i*bucket_size, (i+1)*bucket_size) for i in non_nan_indices]
+    bucket_labels = [f"{low}-{high}" for low, high in bucket_ranges]
+    plt.figure(figsize=(8, 4))
+    plt.bar(bucket_labels, non_nan_values)
+    plt.xlabel('Puzzle Rating (Elo)')
+    plt.ylabel('Probability correct')
+    plt.title('Ratings vs. Buckets')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+    plt.savefig("/tmp/a.png", dpi=600)
+    plt.savefig("accuracy.png", dpi=600)
+    """
+
+    # Plot pgn and proofgame on the same plot
+    bucket_ranges = [(k, k + bucket_size) for k in nonempty_buckets]
+    bucket_labels = [f"{low}-{high}" for low, high in bucket_ranges]
+    pgn_acc = [np.mean(ok_pgn[bucket_start]) for bucket_start in nonempty_buckets]
+    proofgame_acc = [np.mean(ok_proofgame[bucket_start]) for bucket_start in nonempty_buckets]
+    plt.figure(figsize=(8, 4))
+    plt.bar(bucket_labels, pgn_acc, label="pgn")
+    plt.bar(bucket_labels, proofgame_acc, label="proofgame")
+    plt.xlabel('Puzzle Rating (Elo)')
+    plt.ylabel('Probability correct')
+    plt.title('Ratings vs. Buckets')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+    plt.savefig("/tmp/b.png", dpi=600)
+    plt.savefig("accuracy_both.png", dpi=600)
+
 
 if __name__ == "__main__":
     api_key = open("OPENAI_API_KEY").read().strip()
-    config = { "temperature": 0, "num_lookahead_tokens": 20 }
-    engine = chessllm.ChessLLM(api_key, config, model="gpt-3.5-turbo-instruct", num_lookahead_tokens=30)
-    main(engine)
+    config = { "temperature": 0, "num_lookahead_tokens": 30}
+    engine = chessllm.ChessLLM(api_key, config, model="gpt-3.5-turbo-instruct")
+    plot_acc_pairs(engine)
+
