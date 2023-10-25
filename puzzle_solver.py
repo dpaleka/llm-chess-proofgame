@@ -54,7 +54,6 @@ def solve_puzzle(board, solution, engine):
     return True
 
 def plot_acc(engine, file_name, bucket_size, enough_samples):
-
     buckets = {i*bucket_size: [] for i in range(15)}
 
     import pandas as pd

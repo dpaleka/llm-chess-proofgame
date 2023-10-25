@@ -41,7 +41,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_file", "-i", help="Name of the input file", default="/data/chess-data/lichess_puzzles/pgn_puzzles.csv")
     parser.add_argument("--output_file", "-o", help="Name of the output file", default="/data/chess-data/lichess_puzzles/fen_puzzles.csv")
-    parser.add_argument("--num_entries", "-n", type=int, help="Number of entries to process", default=None)
+    parser.add_argument("--num_entries", "-n", type=int, help="Number of entries to process (if not given, process all)", default=None)
 
     args = parser.parse_args()
 

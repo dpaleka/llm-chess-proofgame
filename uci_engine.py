@@ -79,7 +79,7 @@ def main():
 if __name__ == "__main__":
     log = open("/tmp/log.txt", "a")
     api_key = open("OPENAI_API_KEY").read().strip()
-    config = json.loads(open("config.json").read())
-    engine = ChessLLM(api_key, config)
+    config = { "temperature": 0, "num_lookahead_tokens": 30}
+    engine = ChessLLM(api_key, config, model="gpt-3.5-turbo-instruct")
     main()
 

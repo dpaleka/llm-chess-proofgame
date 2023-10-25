@@ -1,6 +1,6 @@
 """
 Three csv files.
-pgn:  has header uid,rating,FEN,solution
+fen:  has header uid,rating,FEN,solution
 Proofgame_pgn: uid,rating,FEN,solution,proofgame
 Original_pgn: has header uid,rating,pgn,solution
 
@@ -12,9 +12,8 @@ import pandas as pd
 import argparse
 import os
 
-def merge_files(data_dir, pgn_file, proofgame_file, original_file, output_file):
+def merge_files(data_dir, fen_file, proofgame_file, original_file, output_file):
     # Load the csv files
-    pgn = pd.read_csv(os.path.join(data_dir, pgn_file))
     proofgame_pgn = pd.read_csv(os.path.join(data_dir, proofgame_file))
     original_pgn = pd.read_csv(os.path.join(data_dir, original_file))
     # original pgn may not have a header
@@ -35,7 +34,7 @@ def merge_files(data_dir, pgn_file, proofgame_file, original_file, output_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", "-d", default="/data/chess-data/lichess_puzzles/", help="Directory containing the data files. Can be / if you want to use full paths")
-    parser.add_argument("--pgn_file", "-p", default="fen_puzzles.csv", help="Name of the pgn file")
+    parser.add_argument("--fen_file", "-p", default="fen_puzzles.csv", help="Name of the pgn file")
     parser.add_argument("--proofgame_file", "-pg", default="proofgame_pgns.csv", help="Name of the proofgame file")
     parser.add_argument("--original_file", "-o", default="pgn_puzzles.csv", help="Name of the original pgn file")
     parser.add_argument("--output", "-out", default="/data/chess-data/lichess_puzzles/pairs.csv", help="Name of the output file")
