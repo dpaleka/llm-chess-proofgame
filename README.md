@@ -1,82 +1,102 @@
 # ChessLLM
+Adapted from [Nicholas Carlini's repo](https://github.com/carlini/chess-llm).
 
-This is a project to play chess against Large Language Models (LLMs).
+This is a project to test how sensitive LLMs that play chess are to irrelevant factors (other than the position on the board).
 Currently it only supports the OpenAI text completion API,
 and has only been tested on GPT-3.5-turbo-instruct.
-(Because this is the only model I've seen that plays chess well.)
-
-This code is very bare-bones. It's just enough to make things run.
-Maybe in the future I'll extend it to make it better.
-
-If you're reading this and this message is still here,
-you can play a version of this bot running under my API key
-[by clicking here](https://lichess.org/?user=gpt35-turbo-instruct#friend).
 
 
-## What is this?
 
-This is a chess engine that plays chess by prompting GPT-3.5-turbo-instruct.
-To do this it passes the entire game state as a PGN, and the model plays
-whatever move the language model responds with. So in order to respond to
-a standard King's pawn opening I prompt the model with
+## Wait, LLMs
+LLMs that play chess (currently mostly GPT-3.5-turbo-instruct) currently take the game state as a PGN, 
+and predict the next move.
+For example, to respond to a Sicilian , one can prompt the model with
 
     [White "Garry Kasparov"]
     [Black "Magnus Carlsen"]
     [Result "1/2-1/2"]
-    [WhiteElo "2900"]
+    [WhiteElo "2800"]
     [BlackElo "2800"]
     
-    1. e4
+    1. e4 c5 2.
 
-And then it responds `e5` which means my engine should return the move `e5`.
+and if it predicts ` Nf3`, it means the engine should return the move `Nf3`.
+Turns out this engine can play chess pretty well (beating the 1800-rated Stockfish handily), 
+and model the board state extremely well, almost never making illegal moves.
 
+(It helps to put strong players in the PGN header, because we can [ask for generalization](https://evjang.com/2021/10/23/generalization.html).)
+
+
+## What is this?
+The fact that the model does not take the current position, but rather the entire sequence of moves, as input,
+has interesting implications: the model's "thinking" in a given position might be very different based on irrelevant factors.
+
+For example, what does the model play for White in the position `2rq1rk1/1p2ppbp/p1npb1p1/8/2P1P3/1PN5/P2BBPPP/2RQ1RK1 w - - 0 1` here?
+
+<img src="board_Be3_Nd5.png" alt="2rq1rk1/1p2ppbp/p1npb1p1/8/2P1P3/1PN5/P2BBPPP/2RQ1RK1 w - - 0 1" width="500">
+
+Turns out, it depends on how you arrive to it.  If the moves are
+```
+1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 g6 5. c4 Bg7 6. Be3 Nf6 7. Nc3 O-O 8. Be2 d6 9. Nf3 Ng4 10. Bd2 Qb6 11. O-O Nge5 12. Qb3 Qd8 13. Nxe5 Nxe5 14. Qc2 Be6 15. b3 Rc8 16. Rac1 a6 17. Qd1 Nc6
+```
+you get `Be3`; whereas if the moves are
+```
+1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. Nf3 c5 6. Be2 cxd4 7. Qxd4 Nc6 8. Qd1 O-O 9. O-O Nd7 10. Bd2 Nce5 11. Nxe5 Nxe5 12. Qc2 Be6 13. b3 Rc8 14. Rac1 a6 15. Qd1 Nc6
+``````
+you get `Nd5`.
+
+<img src="Be3.png" alt="Be3 top move, OpenAI playground" width="400">
+<img src="Nd5.png" alt="Nd5 top move, OpenAI playground" width="420">
+
+The probabilities aren't even close. Both games are pretty natural, maybe not top-level, but not obviously bad.
+
+
+## How to construct pairs of positions?
+There is a tool called [proofgame](https://github.com/peterosterlund2/texel/blob/9c17c7703a94cead244e3435263ff916b178dc97/doc/proofgame.md) in the [texel](github.com/peterosterlund2/texel) repo that returns a PGN for a given FEN. 
+We use the option `-f` and set the last two entires of the FEN to `0 1`, because we only care about the position, not the number of moves it took to get there.
+The games it constructs are quite unnatural, and are usually a bit longer than the original game that led to the position.
+
+As in Carlini's repo, we test the model on puzzles and report the accuracy, only here we report both the accuracy on the original game that led to a puzzle, and the accuracy on the constructed game that led to the same position.
+
+<img src="accuracy_both.png" alt="Accuracy of GPT-3.5-turbo-instruct on original pgns / proofgames" width="500">
+
+
+## How to reproduce the experiment
+1.  Run `generate_pgn_puzzles.py` to download a bunch of puzzles and corresponding games from Lichess.
+2.  Run `pgn_to_fen.py` to get a nice file of FENs.
+3.  Use `proofgame.py` to generate proof games. Depending on the size of the dataset, this is somewhat slow. 
+The default and to spend 3 minutes per FEN, so it can produce PGNs for about 50\% of the FENs in a representative dataset.
+However, all jobs are single-threaded and don't take much memory, so the default setting is to run 64 FENs in parallel.
+4.  Run `make_pairs_puzzles_dataset.py` to generate a dataset of puzzles and their solutions.
+5.  Run `puzzle_pair_solver.py` to compare how the model performs.
+ 
+(The above is complicated because it's WIP, but it works. Eventually it should be a single script.)
+
+
+## Possible next steps
+- Log the model's rate of illegal moves.
+- Try other models, such as the Pythia-Chess models from EleutherAI.
+- Display pairs of positions when the recommended move disagrees
+- Find another way of constructing pairs of PGNs leading to the same position, that doesn't make one of the games very unnatural. One way is to query the Lichess database for all appearances of a position, and take all different PGNs that led to this position. This will likely only work for positions before the 20th move or so.
+- Test other sources of spurious features, like the exact ratings of the players in the header. In general, test how the header affects the model's predictions. Maybe it's possible to construct a header that makes the model play much better?
+- Figure out what to do with these experiments? I originally wrote it as an addendum to [a paper on checking consistency in chess engines and LLMs](https://arxiv.org/abs/2306.09983), but not sure that the intersection of the two is on-topic for that paper in particular.
 
 ## Installing
 
 This project has minimal dependencies: just python-chess and requests to
-run the UCI engine, or some additional dependencies to the lichess bot
-in the lichess-bot folder.
+run the UCI engine. The chess 
 
     pip install -r requirements.txt
-    pip install -r lichess-bot/requirements.txt # if you want to run the bot
-
-
-## Getting Started
 
 ### Add your OpenAI key
 
 Put your key in a file called `OPENAI_API_KEY`.
 
-### UCI engine
 
-If you already have a UCI-compliant chess engine downloaded and want to play
-against the model you can pass `./uci_engine.py`.
-
-
-### Lichess bot
-
-The lichess-bot directory is a fork of the [lichess-bot](https://github.com/lichess-bot-devs/lichess-bot) project with a few hacks so that my bot talks a bit more and explains what it's doing.
-If you want to make a lichess bot, you'll first need to create a new account,
-then get an API key, and turn it into a bot. The steps to do this are
-described: [in the lichess-bot README](lichess-bot/README.md).
-
-Once you've done that put your API key as the first line of `config.yml`.
-
-
-## Next steps
-
-I highly doubt I'll do any of these things, but here are some things
-I may want to do. (Or you can do!)
-
-- Search: what happens if instead of predicting the top-1 move you predict
-different moves and take the "best"? How do you choose "best"?
-
-- Resign if lost: how can you detect if the game is lost and then just
-resign if it's obviously over?
-
-- Other models: right now this works for just OpenAI's text completion models.
-It would be great to hook this up to other models if any of them
-become reasonably good at chess.
+### Texelutil
+The texelutil binary (version 1.10) that works on x86-64 Ubuntu is included in this repo.
+If you are on a different platform, you can get it from [here](https://github.com/peterosterlund2/texel/releases/tag/1.10).
+In some cases you will need to compile it from scratch, which is easy; just follow the instructions in the `texel` repo.
 
 
 ## License: GPL v3
@@ -88,5 +108,3 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 
 
-## Daniel's instructions
-Copy texelutil binary (installed by any means, just `texelutil`) to this folder.
