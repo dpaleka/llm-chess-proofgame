@@ -28,6 +28,8 @@ def merge_files(data_dir, pgn_file, proofgame_file, original_file, output_file):
     merged_df = merged_df[merged_df['proofgame'].notna()]
 
     # Write the merged dataframe to a new csv file
+    # reorder so it's uid, rating, pgn, proofgame, solution
+    merged_df = merged_df[['uid', 'rating', 'pgn', 'proofgame', 'solution']]
     merged_df.to_csv(output_file, index=False)
 
 if __name__ == "__main__":

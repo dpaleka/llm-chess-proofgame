@@ -24,13 +24,15 @@ from pathlib import Path
 from tqdm import tqdm
 
 def convert_pgn_to_game(pgn_moves):
+    print("pgn_moves", pgn_moves)
     pgn = io.StringIO(pgn_moves)
+    print("pgn", pgn)
     game = chess.pgn.read_game(pgn)
     if len(game.errors) > 0:
         return None
     return game
 
-def solve_puzzle(board, solution):
+def solve_puzzle(board, solution, engine):
     print("Solving puzzle", board.fen(), solution)
     solution = solution.split()
     while True:
@@ -84,7 +86,7 @@ def main():
             for move in convert_pgn_to_game(pgn).mainline_moves():
                 board.push(move)
 
-            is_right = solve_puzzle(board, solution)
+            is_right = solve_puzzle(board, solution, engine)
 
             ok[rating_bucket].append(is_right)
 
