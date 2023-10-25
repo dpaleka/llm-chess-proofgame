@@ -75,6 +75,6 @@ def main(engine):
 
 if __name__ == "__main__":
     api_key = open("OPENAI_API_KEY").read().strip()
-    config = json.loads(open("config.json").read())
-    engine = chessllm.ChessLLM(api_key, config, num_lookahead_tokens=30)
+    config = { "temperature": 0, "num_lookahead_tokens": 20 }
+    engine = chessllm.ChessLLM(api_key, config, model="gpt-3.5-turbo-instruct", num_lookahead_tokens=30)
     main(engine)

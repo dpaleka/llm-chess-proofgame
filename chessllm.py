@@ -16,30 +16,23 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import requests
-import json
-
-import os
 import chess
 import chess.engine
 import chess.pgn
-import random
-import pickle
-import sys
 from litellm import completion
 
+from cachier import cachier
+import datetime
+
 class ChessLLM:
-    def __init__(self, api_key, config, **override):
+    def __init__(self, api_key, config, model : str = "gpt-3.5-turbo-instruct", use_cache : bool = True, **override):
         self.config = config
+        self.model = model
         for k,v in override.items():
             config[k] = v
-        if os.path.exists("cache.p"):
-            with open("cache.p", "rb") as f:
-                self.cache = pickle.load(f)
-        else:
-            self.cache = {}
-        print("Loading cache with", len(self.cache), "entries")
+        self.use_cache = use_cache
         self.api_key = api_key
+
 
     def get_query_pgn(self, board, with_header = f"""[White "Magnus Carlsen"]\n[Black "Garry Kasparov"]\n[WhiteElo "2900"]\n[BlackElo "2800"]\n\n"""):
         pgn = str(chess.pgn.Game().from_board(board))
@@ -80,23 +73,15 @@ class ChessLLM:
             num_tokens = self.config['num_lookahead_tokens']
         assert num_tokens >= 9, "A single move might take as many as 9 tokens (3 for the number + 6 for, e.g., 'N3xg5+)."
 
-        if board.fen() in self.cache:
-            out = self.cache[board.fen()]
-            if conversation:
-                if board.ply() > 0:
-                    conversation.send_message("player", f"You played a move already in my cache (because I predicted it or someone already played it)! Returning {out}.")
-                    conversation.send_message("spectator", f"Player played a move already in my cache (because I predicted it or someone already played it). Returning {out}.")
-            return out
-
         pgn_to_query = self.get_query_pgn(board)
 
         if conversation:
             conversation.send_message("player", f"Querying {self.config['model']} with ... {pgn_to_query.split(']')[-1][-90:]}")
             conversation.send_message("spectator", f"Querying {self.config['model']} with ... {pgn_to_query.split(']')[-1][-90:]}")
         
-        next_text = self.make_request(pgn_to_query, num_tokens)
+        next_text = self.make_request(pgn_to_query, num_tokens, temperature=self.config['temperature'], model=self.model, ignore_cache = not self.use_cache)
         if next_text[:2] == "-O":
-            next_text = self.make_request(pgn_to_query+" ", num_tokens)
+            next_text = self.make_request(pgn_to_query+" ", num_tokens, temperature=self.config['temperature'], model=self.model, ignore_cache = not self.use_cache)
 
         if conversation:
             conversation.send_message("spectator", f"Received reply of '{next_text}'")
@@ -104,22 +89,17 @@ class ChessLLM:
         next_moves = self.try_moves(board, next_text)
 
         if len(next_moves) == 0:
-            conversation.send_message("player", f"Tried to make an invalid move.")
-            conversation.send_message("spectator", f"Tried to make an invalid move.")
+            conversation.send_message("player", "Tried to make an invalid move.")
+            conversation.send_message("spectator", "Tried to make an invalid move.")
             return None
 
         if conversation:
             conversation.send_message("player", f"Received reply and making move {next_moves[0]}.")
 
-        new_board = board.copy()
-        for move in next_moves:
-            self.cache[new_board.fen()] = move
-            new_board.push_san(move)
-
-        with open("cache.p", "wb") as f:
-            pickle.dump(self.cache, f)
         return next_moves[0]
 
-    def make_request(self, content, num_tokens, model_call="model=gpt-3.5-turbo-instruct"):
-        response = completion(model_call, messages=[{"role": "user", "content": content}], options={"max_tokens": num_tokens, "temperature": self.config['temperature']})
+    @cachier(stale_after=datetime.timedelta(days=30), pickle_reload=False, cache_dir="/data/chess/cache")
+    def make_request(self, content, num_tokens, temperature, model="gpt-3.5-turbo-instruct"):
+        print("Not using cache")
+        response = completion(model, messages=[{"role": "user", "content": content}], **{"max_tokens": num_tokens, "temperature": temperature})
         return response["choices"][0]["message"]["content"]

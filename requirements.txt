@@ -3,3 +3,4 @@ requests
 zstandard
 pebble
 litellm
+cachier
