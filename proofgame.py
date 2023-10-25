@@ -27,15 +27,15 @@ import os
 import io
 import argparse
 import subprocess
-from multiprocessing import Pool
 import re
 import chess
 import chess.pgn
 from pathlib import Path
 import pandas as pd
-import pebble
 from tqdm import tqdm
 from concurrent.futures import TimeoutError
+import multiprocessing
+import time
 
 # Add texelutil to the PATH
 TEXELUTIL_PATH = Path(".").resolve()
@@ -49,7 +49,7 @@ os.makedirs(TEXELUTIL_RES_DIR, exist_ok=True)
 MAX_THREADS = 64
 TIMEOUT = 180  # Timeout in seconds
 
-# List of FENs for testing
+# List of FENs for testing whether the code works
 fens_test = ["r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1", 
              "r6r/pp3pk1/5Rp1/n2pP1Q1/2pPp3/2P1P2q/PP1B3P/R5K1 w - - 0 1",
              "r1b3k1/pp3Rpp/3p1b2/2pN4/2P5/5Q1P/PPP3P1/4qNK1 w - - 0 1"]
@@ -63,7 +63,7 @@ def check_contains_fen(fen, file):
 
 def move_01(fen : str):
     """
-    Replace the last two numbers with 0 and 1.
+    Replace the last two fields in the FEN (halfmove count for 50-move rule, full move count) with 0 and 1.
     """
     fen = fen.split()
     assert(len(fen) == 6 and fen[4].isdigit() and fen[5].isdigit())
@@ -136,7 +136,6 @@ def main(args):
     print(f"Computing {len(fens)} proof games")
     for i in range(0, len(fens), MAX_THREADS):
         print(f"Processing {i} to {i + MAX_THREADS}")
-        import multiprocessing
         pool = multiprocessing.Pool(MAX_THREADS)
         with pool:
             pool.starmap(run_command, [(fen, i + thread_id) for thread_id, fen in enumerate(fens[i:i + MAX_THREADS])])
@@ -144,8 +143,7 @@ def main(args):
         pool.join()
         # kill texelutil bc it's not closing properly
         subprocess.run("killall texelutil", shell=True)
-        import time
-        time.sleep(max(5, TIMEOUT/10))
+        time.sleep(5)
 
     print("Processing output")
     if args.fens_file:
