@@ -22,7 +22,9 @@ import chess.pgn
 from litellm import completion
 
 from cachier import cachier
+from cachier import set_default_params as cachier_set
 import datetime
+cachier_set(stale_after=datetime.timedelta(days=30), pickle_reload=False, cache_dir="/data/chess/cache")
 
 class ChessLLM:
     def __init__(self, api_key, config, model : str = "gpt-3.5-turbo-instruct", use_cache : bool = True, **override):
@@ -98,8 +100,10 @@ class ChessLLM:
 
         return next_moves[0]
 
-    @cachier(stale_after=datetime.timedelta(days=30), pickle_reload=False, cache_dir="/data/chess/cache")
-    def make_request(self, content, num_tokens, temperature, model="gpt-3.5-turbo-instruct"):
+#    @cachier(stale_after=datetime.timedelta(days=30), pickle_reload=False, cache_dir="/data/chess/cache")
+    @cachier()
+    def make_request(self, content, num_tokens, temperature, model="gpt-3.5-turbo-instruct", **kwargs):
+        # kwargs are here for compatibility with local model calls through fastapi
         print("Not using cache")
         response = completion(model, messages=[{"role": "user", "content": content}], **{"max_tokens": num_tokens, "temperature": temperature})
         return response["choices"][0]["message"]["content"]
