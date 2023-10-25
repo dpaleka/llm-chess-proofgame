@@ -63,9 +63,9 @@ FILE_NAME = DATA_DIR / "pgn_puzzles.csv"
 def main():
 
     # Create buckets
-    bucket_size = 200
+    bucket_size = 400
+    enough_samples = 4
     buckets = [[] for _ in range(30)]
-    enough_samples = 40
 
     # Read the data and sort into buckets
     with open(FILE_NAME) as f:

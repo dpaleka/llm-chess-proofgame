@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 ## Copyright (C) 2023, Nicholas Carlini <nicholas@carlini.com>.
+## Copyright (C) 2023, Daniel Paleka <danepale@gmail.com>.
 ##
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -25,6 +26,7 @@ import chess.pgn
 import random
 import pickle
 import sys
+from litellm import completion
 
 class ChessLLM:
     def __init__(self, api_key, config, **override):
@@ -39,7 +41,7 @@ class ChessLLM:
         print("Loading cache with", len(self.cache), "entries")
         self.api_key = api_key
 
-    def get_query_pgn(self, board):
+    def get_query_pgn(self, board, with_header = f"""[White "Magnus Carlsen"]\n[Black "Garry Kasparov"]\n[WhiteElo "2900"]\n[BlackElo "2800"]\n\n"""):
         pgn = str(chess.pgn.Game().from_board(board))
 
         if board.outcome() is None:
@@ -54,7 +56,7 @@ class ChessLLM:
             else:
                 pgn += ' '+str(board.fullmove_number)+"."
 
-        with_header = f"""[White "Magnus Carlsen"]\n[Black "Garry Kasparov"]\n[WhiteElo "2900"]\n[BlackElo "2800"]\n\n"""+pgn.split("\n\n")[1]
+        with_header += pgn.split("\n\n")[1]
 
         return with_header
 
@@ -108,7 +110,7 @@ class ChessLLM:
 
         if conversation:
             conversation.send_message("player", f"Received reply and making move {next_moves[0]}.")
-        
+
         new_board = board.copy()
         for move in next_moves:
             self.cache[new_board.fen()] = move
@@ -118,25 +120,6 @@ class ChessLLM:
             pickle.dump(self.cache, f)
         return next_moves[0]
 
-    def make_request(self, content, num_tokens):
-        url = "https://api.openai.com/v1/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
-        data = {
-            "model": self.config['model'],
-            "prompt": content,
-            "temperature": self.config['temperature'],
-            "max_tokens": num_tokens,
-        }
-    
-
-        #sys.stderr.write(repr(data)+"\n")
-        response = requests.post(url, headers=headers, data=json.dumps(data))
-        response = response.json()['choices'][0]['text']
-        #sys.stderr.write(response+"\n")
-
-        return response
-    
-
+    def make_request(self, content, num_tokens, model_call="model=gpt-3.5-turbo-instruct"):
+        response = completion(model_call, messages=[{"role": "user", "content": content}], options={"max_tokens": num_tokens, "temperature": self.config['temperature']})
+        return response["choices"][0]["message"]["content"]
