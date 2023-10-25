@@ -1,13 +1,12 @@
 # ChessLLM
-Adapted from [Nicholas Carlini's repo](https://github.com/carlini/chess-llm).
-
 This is a project to test how sensitive LLMs that play chess are to irrelevant factors (other than the position on the board).
 Currently it only supports the OpenAI text completion API,
 and has only been tested on GPT-3.5-turbo-instruct.
 
+Adapted from [Nicholas Carlini's repo](https://github.com/carlini/chess-llm).
 
 
-## Wait, LLMs
+## Wait, LLMs can play chess?
 LLMs that play chess (currently mostly GPT-3.5-turbo-instruct) currently take the game state as a PGN, 
 and predict the next move.
 For example, to respond to a Sicilian , one can prompt the model with
@@ -83,20 +82,19 @@ However, all jobs are single-threaded and don't take much memory, so the default
 
 ## Installing
 
-This project has minimal dependencies: just python-chess and requests to
-run the UCI engine. The chess 
+This project has minimal dependencies so far: python-chess, litellm, cachier (for caching responses, it's possible to turn it off). 
 
     pip install -r requirements.txt
-
-### Add your OpenAI key
-
-Put your key in a file called `OPENAI_API_KEY`.
 
 
 ### Texelutil
 The texelutil binary (version 1.10) that works on x86-64 Ubuntu is included in this repo.
 If you are on a different platform, you can get it from [here](https://github.com/peterosterlund2/texel/releases/tag/1.10).
 In some cases you will need to compile it from scratch, which is easy; just follow the instructions in the `texel` repo.
+
+### Add your OpenAI key
+
+Put your key in a file called `OPENAI_API_KEY`.
 
 
 ## License: GPL v3
