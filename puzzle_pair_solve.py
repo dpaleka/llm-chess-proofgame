@@ -71,25 +71,6 @@ def plot_acc_pairs(engine, bucket_size=200, enough_samples=10):
             pgn_acc = np.mean(ok_pgn[bucket_start])
             proofgame_acc = np.mean(ok_proofgame[bucket_start])
             print(f'rating [{bucket_start}, {bucket_start + bucket_size})', f'pgn acc {pgn_acc:.3f}', f'proofgame acc {proofgame_acc:.3f}', 'n', len(ok_pgn[bucket_start]))
-    
-    # Plot both results
-    """
-    Some old code:
-    non_nan_indices = [i for i, val in enumerate(ratings) if not np.isnan(val)]
-    non_nan_values = [ratings[i] for i in non_nan_indices]
-    bucket_ranges = [(i*bucket_size, (i+1)*bucket_size) for i in non_nan_indices]
-    bucket_labels = [f"{low}-{high}" for low, high in bucket_ranges]
-    plt.figure(figsize=(8, 4))
-    plt.bar(bucket_labels, non_nan_values)
-    plt.xlabel('Puzzle Rating (Elo)')
-    plt.ylabel('Probability correct')
-    plt.title('Ratings vs. Buckets')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
-    plt.savefig("/tmp/a.png", dpi=600)
-    plt.savefig("accuracy.png", dpi=600)
-    """
 
     # Plot pgn and proofgame on the same plot
     bucket_ranges = [(k, k + bucket_size) for k in nonempty_buckets]
