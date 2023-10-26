@@ -1,9 +1,9 @@
 # ChessLLM robustness
-This is a project to test how sensitive LLMs that play chess are to irrelevant factors (other than the position on the board).
+This is a WIP project to test how sensitive LLMs that play chess are to non-semantic factors (other than the position on the board).
 Currently it only supports the OpenAI text completion API,
 and has only been tested on GPT-3.5-turbo-instruct.
 
-Adapted from [Nicholas Carlini's repo](https://github.com/carlini/chess-llm).
+Adapted from [Nicholas Carlini's repo](https://github.com/carlini/chess-llm) and [blogpost](https://nicholas.carlini.com/writing/2023/chess-llm.html).    
 
 
 ## Wait, LLMs can play chess?
@@ -28,7 +28,7 @@ and model the board state extremely well, almost never making illegal moves.
 
 ## What is this?
 The fact that the model does not take the current position, but rather the entire sequence of moves, as input,
-has interesting implications: the model's "thinking" in a given position might be very different based on irrelevant factors.
+has interesting implications: the model's "thinking" in a given position might vary significantly based on features beyond the current board state.
 
 For example, what does the model play for White in the position `2rq1rk1/1p2ppbp/p1npb1p1/8/2P1P3/1PN5/P2BBPPP/2RQ1RK1 w - - 0 1` here?
 
@@ -95,6 +95,13 @@ In some cases you will need to compile it from scratch, which is easy; just foll
 ### Add your OpenAI key
 
 Put your key in a file called `OPENAI_API_KEY`.
+
+## Are human players and other chess engines affected by the move sequence?
+Humans, certainly. Players may adjust their strategies based on whether their opponent is playing well or poorly.
+However, I would bet the effect is more severe in current LLMs, even when accounting for player rating: 
+players of similar strength as GPT-3.5-turbo-instruct should be affected much less.
+
+As for other engines, technically yes, but in practice not that much. Stockfish caches some previously explored states during the game, which informs its initial search each time a new move is played. Nonetheless, given sufficient time to search, it should explore a similar set of positions regardless of how it arrived at the current one.
 
 
 ## License: GPL v3
