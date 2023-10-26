@@ -1,6 +1,5 @@
 python-chess
 requests
 zstandard
-pebble
 litellm
 cachier

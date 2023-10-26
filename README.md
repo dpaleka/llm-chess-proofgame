@@ -32,7 +32,7 @@ has interesting implications: the model's "thinking" in a given position might b
 
 For example, what does the model play for White in the position `2rq1rk1/1p2ppbp/p1npb1p1/8/2P1P3/1PN5/P2BBPPP/2RQ1RK1 w - - 0 1` here?
 
-<img src="board_Be3_Nd5.png" alt="2rq1rk1/1p2ppbp/p1npb1p1/8/2P1P3/1PN5/P2BBPPP/2RQ1RK1 w - - 0 1" width="500">
+<img src="assets/board_Be3_Nd5.png" alt="2rq1rk1/1p2ppbp/p1npb1p1/8/2P1P3/1PN5/P2BBPPP/2RQ1RK1 w - - 0 1" width="500">
 
 Turns out, it depends on how you arrive to it.  If the moves are
 ```
@@ -41,11 +41,11 @@ Turns out, it depends on how you arrive to it.  If the moves are
 you get `Be3`; whereas if the moves are
 ```
 1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. Nf3 c5 6. Be2 cxd4 7. Qxd4 Nc6 8. Qd1 O-O 9. O-O Nd7 10. Bd2 Nce5 11. Nxe5 Nxe5 12. Qc2 Be6 13. b3 Rc8 14. Rac1 a6 15. Qd1 Nc6
-``````
+```
 you get `Nd5`.
 
-<img src="Be3.png" alt="Be3 top move, OpenAI playground" width="400">
-<img src="Nd5.png" alt="Nd5 top move, OpenAI playground" width="420">
+<img src="assets/Be3.png" alt="Be3 top move, OpenAI playground" width="400">
+<img src="assets/Nd5.png" alt="Nd5 top move, OpenAI playground" width="420">
 
 The probabilities aren't even close. Both games are pretty natural, maybe not top-level, but not obviously bad.
 
@@ -57,7 +57,7 @@ The games it constructs are quite unnatural, and are usually a bit longer than t
 
 As in Carlini's repo, we test the model on puzzles and report the accuracy, only here we report both the accuracy on the original game that led to a puzzle, and the accuracy on the constructed game that led to the same position.
 
-<img src="accuracy_both.png" alt="Accuracy of GPT-3.5-turbo-instruct on original pgns / proofgames" width="500">
+<img src="assets/accuracy_both.png" alt="Accuracy of GPT-3.5-turbo-instruct on original pgns / proofgames" width="500">
 
 
 ## How to reproduce the experiment
