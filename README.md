@@ -73,9 +73,9 @@ However, all jobs are single-threaded and don't take much memory, so the default
 
 
 ## Possible next steps
-- Log the model's rate of illegal moves.
-- Try other models, such as the Pythia-Chess models from EleutherAI.
-- Display pairs of positions when the recommended move disagrees
+- Log the model's rate of illegal moves in out-of-distribution games versus in-distribution games, keeping the position the same.
+- Try other chess-playing LLMs, such as the Pythia-Chess models from EleutherAI.
+- Display (position, game1, game2) ranked by how much the recommended move disagrees measuring difference in logprobs, e.g. with Jensen-Shannon distance. It could be that there are interesting patterns.
 - Find another way of constructing pairs of PGNs leading to the same position, that doesn't make one of the games very unnatural. One way is to query the Lichess database for all appearances of a position, and take all different PGNs that led to this position. This will likely only work for positions before the 20th move or so.
 - Test other sources of spurious features, like the exact ratings of the players in the header. In general, test how the header affects the model's predictions. Maybe it's possible to construct a header that makes the model play much better?
 - Figure out what to do with these experiments? I originally wrote it as an addendum to [a paper on checking consistency in chess engines and LLMs](https://arxiv.org/abs/2306.09983), but not sure that the intersection of the two is on-topic for that paper in particular.
