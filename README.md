@@ -44,8 +44,8 @@ you get `Be3`; whereas if the moves are
 ```
 you get `Nd5`.
 
-<img src="assets/Be3.png" alt="Be3 top move, OpenAI playground" width="400">
-<img src="assets/Nd5.png" alt="Nd5 top move, OpenAI playground" width="420">
+<img src="assets/Be3.png" alt="Be3 top move, OpenAI playground" width="460">
+<img src="assets/Nd5.png" alt="Nd5 top move, OpenAI playground" width="470">
 
 The probabilities aren't even close. Both games are pretty natural, maybe not top-level, but not obviously bad.
 
