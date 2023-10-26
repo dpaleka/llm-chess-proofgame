@@ -1,4 +1,4 @@
-# ChessLLM
+# ChessLLM robustness
 This is a project to test how sensitive LLMs that play chess are to irrelevant factors (other than the position on the board).
 Currently it only supports the OpenAI text completion API,
 and has only been tested on GPT-3.5-turbo-instruct.
