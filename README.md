@@ -1,5 +1,5 @@
 # ChessLLM robustness
-This is a WIP project to test how sensitive LLMs that play chess are to non-semantic factors (other than the position on the board).
+This is a side project to test how sensitive LLMs that play chess are to non-semantic factors (other than the position on the board).
 Currently it only supports the OpenAI text completion API,
 and has only been tested on GPT-3.5-turbo-instruct.
 
@@ -78,7 +78,7 @@ However, all jobs are single-threaded and don't take much memory, so the default
 - Display (position, game1, game2) ranked by how much the recommended move disagrees measuring difference in logprobs, e.g. with Jensen-Shannon distance. It could be that there are interesting patterns.
 - Find another way of constructing pairs of PGNs leading to the same position, that doesn't make one of the games very unnatural. One way is to query the Lichess database for all appearances of a position, and take all different PGNs that led to this position. This will likely only work for positions before the 20th move or so.
 - Test other sources of spurious features, like the exact ratings of the players in the header. In general, test how the header affects the model's predictions. Maybe it's possible to construct a header that makes the model play much better?
-- Figure out what to do with these experiments? I originally wrote it as an addendum to [a paper on checking consistency in chess engines and LLMs](https://arxiv.org/abs/2306.09983), but not sure that the intersection of the two is on-topic for that paper in particular.
+- Figure out what to do with these experiments? I originally wrote it as an addendum to [a paper on checking consistency in chess engines and LLMs](https://arxiv.org/abs/2306.09983), but the intersection of the two turned out not to be on-topic for that paper in particular.
 
 ## Installing
 
